@@ -39,7 +39,7 @@ public sealed class VeldaraPrototype : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Boot()
     {
-        if (FindFirstObjectByType<VeldaraPrototype>() == null)
+        if (FindAnyObjectByType<VeldaraPrototype>() == null)
             new GameObject("Veldara Caldra Demo Runtime").AddComponent<VeldaraPrototype>();
     }
     private void Start()
@@ -47,7 +47,7 @@ public sealed class VeldaraPrototype : MonoBehaviour
         Application.targetFrameRate = 60;
         RenderSettings.ambientLight = new Color(.38f,.36f,.39f);
         RenderSettings.fog = true; RenderSettings.fogColor = new Color(.30f,.25f,.24f); RenderSettings.fogDensity = .012f;
-        if (FindFirstObjectByType<Light>() == null) {
+        if (FindAnyObjectByType<Light>() == null) {
             GameObject sun = new GameObject("Caldra Volcanic Light"); Light l = sun.AddComponent<Light>();
             l.type = LightType.Directional; l.intensity = 1.15f; l.color = new Color(1f,.76f,.56f);
             sun.transform.rotation = Quaternion.Euler(48,-32,0);
@@ -63,8 +63,16 @@ public sealed class VeldaraPrototype : MonoBehaviour
         CreateEnemy("Cinder Mite",1,new Vector3(9,0,5),new Color(.84f,.39f,.13f),32,6);
         CreateEnemy("Ashling",3,new Vector3(4,0,-7),new Color(.63f,.28f,.17f),55,10);
         CreateEnemy("Concord Siphon",4,new Vector3(18,0,-17),new Color(.48f,.12f,.13f),120,13);
-        cam=Camera.main;
-        if(cam==null){GameObject c=new GameObject("Main Camera");cam=c.AddComponent<Camera>();cam.tag="MainCamera";cam.AddComponent<AudioListener>();}
+        cam = Camera.main;
+
+        if (cam == null)
+        {
+            GameObject c = new GameObject("Main Camera");
+            cam = c.AddComponent<Camera>();
+            c.tag = "MainCamera";
+            c.AddComponent<AudioListener>();
+        }
+
         cam.fieldOfView=58; cam.backgroundColor=new Color(.30f,.25f,.26f);
         SetStatus("DEMO 0 — CALDRA: Find Kaelen at the village forge.");
     }
@@ -119,7 +127,26 @@ public sealed class VeldaraPrototype : MonoBehaviour
     private void SpawnPartner(){if(partner!=null)Destroy(partner.gameObject);GameObject o=Primitive("Partner - "+embit.species,PrimitiveType.Sphere,player.position+new Vector3(-1,0,-1),Vector3.one*.85f,embit.color);partner=o.transform;Child(partner,"Ember Core",new Vector3(0,.05f,.38f),Vector3.one*.24f,new Color(1,.82f,.22f));Child(partner,"Eye L",new Vector3(-.2f,.14f,.34f),Vector3.one*.12f,Color.white);Child(partner,"Eye R",new Vector3(.2f,.14f,.34f),Vector3.one*.12f,Color.white);Collider col=o.GetComponent<Collider>();if(col!=null)Destroy(col);}
     private Enemy NearestEnemy(float range){Enemy best=null;float dBest=range;foreach(Enemy e in enemies){if(e==null||e.dead)continue;float d=Vector3.Distance(player.position,e.transform.position);if(d<dBest){best=e;dBest=d;}}return best;}
     private void Attack(){if(attackCooldown>0)return;attackCooldown=.48f;Enemy e=NearestEnemy(3.2f);if(e==null){SetStatus("No enemy in range — move closer.");return;}int dmg=embit.power+(embit.bloom?8:0);e.hp-=dmg;embit.gauge=Mathf.Min(100,embit.gauge+18);embit.bond++;SetStatus(embit.species+" hits "+e.species+" for "+dmg+" damage. Bond +18.");if(e.hp<=0){e.dead=true;e.gameObject.SetActive(false);bits+=5;embit.gauge=Mathf.Min(100,embit.gauge+12);SetStatus(e.species+" defeated. +5 bits.");if(e.species=="Concord Siphon"){SetStatus("Siphon destroyed! Return to Kaelen at the forge.");if(questStarted)questStep=2;} }}
-    private StoryNpc NearestNpc(float range){StoryNpc best=null;float dBest=range;foreach(StoryNpc n in FindObjectsByType<StoryNpc>(FindObjectsSortMode.None)){float d=Vector3.Distance(player.position,n.transform.position);if(d<dBest){best=n;dBest=d;}}return best;}
+    private StoryNpc NearestNpc(float range)
+    {
+        StoryNpc best = null;
+        float dBest = range;
+
+        foreach (StoryNpc n in FindObjectsByType<StoryNpc>())
+        {
+            if (n == null) continue;
+
+            float d = Vector3.Distance(player.position, n.transform.position);
+
+            if (d < dBest)
+            {
+                best = n;
+                dBest = d;
+            }
+        }
+
+        return best;
+    }
     private void Interact(){StoryNpc n=NearestNpc(3.2f);if(n!=null){Talk(n.npcName);return;}Enemy e=NearestEnemy(3);if(e!=null){SetStatus(e.species+" Lv."+e.level+" HP "+e.hp+"/"+e.maxHp+" — Space to attack.");return;}if(Vector3.Distance(player.position,new Vector3(-9,0,17))<5){playerHp=100;embit.hp=embit.maxHp;SetStatus("Rested at the forge. HP restored.");return;}SetStatus("Nothing nearby. Find Kaelen, Tessa or Pip in the village.");}
     private void Talk(string name){speaker=name.ToUpperInvariant();showDialogue=true;if(name=="Kaelen Vorr"){if(!questStarted){questStarted=true;questStep=1;dialogue="The ash moves against the wind. Take Embit and destroy the Concord siphon near the crater before it drains the hot spring.";SetStatus("Quest started: A Forge Gone Quiet.");}else if(questStep==2){questStep=3;dialogue="You returned. This machine is only a fragment. Take an Ember Whetstone and a Forge Core; both may shape Embit's future.";}else if(questStep==3){questStep=4;questComplete=true;dialogue="The core hums. The Concord is extracting power from the Guardian. When your Bond is full, Q awakens Embit's Bloom form.";SetStatus("QUEST COMPLETE: A Forge Gone Quiet.");}else if(questComplete)dialogue="The forge is safe for now. Nine distant pillars still flicker beyond Caldra.";else dialogue="The siphon waits near the crater. Keep Embit close and attack with Space.";}else if(name=="Tessa")dialogue=questComplete?"The Forge Core hums like it remembers a voice.":"Concord machines take more than heat. They drain the bond between a creature and this world.";else dialogue=questComplete?"Kaelen says the egg can be saved. I heard it tapping inside the forge!":"I found a warm egg near the forge. Something inside keeps answering the volcano.";SetStatus(name+": "+dialogue);}
     private void BondShift(){if(!questComplete){SetStatus("Bond Shift is unstable. Finish Kaelen's quest first.");return;}if(!embit.bloom){if(embit.gauge<100){SetStatus("Bond Gauge "+Mathf.RoundToInt(embit.gauge)+"/100. Fight enemies to build it.");return;}embit.bloom=true;embit.species="Embit (Bloom)";embit.power+=8;embit.maxHp+=35;embit.hp=embit.maxHp;embit.color=new Color(1,.58f,.16f);SpawnPartner();SetStatus("BOND SHIFT! Embit awakens Bloom. Apex branches remain locked for a future update.");}else{embit.bloom=false;embit.species="Embit (Sprout)";embit.power=Mathf.Max(15,embit.power-8);embit.color=new Color(1,.34f,.12f);SpawnPartner();SetStatus("Embit returned to Sprout. Bond Gauge preserved.");}}
